@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+/// Estado del juego: posiciones, velocidades y puntajes.
 class PongState {
   double ballX = 0, ballY = 0;
   double ballVX = 0, ballVY = 0;
@@ -15,6 +16,7 @@ class PongState {
   int leftScore = 0, rightScore = 0;
 }
 
+/// Controlador del juego: física, IA, eventos de usuario y notificaciones.
 class PongController extends ChangeNotifier {
   final PongState state = PongState();
   final Random rng = Random();
@@ -26,10 +28,11 @@ class PongController extends ChangeNotifier {
   bool _disposed = false;
 
   PongController() {
-    // Ticker lives here; it will call _onTick each frame.
+    // Ticker que actualiza la lógica del juego.
     _ticker = Ticker(_onTick);
   }
 
+  /// Inicia el ticker
   void start() {
     _ticker.start();
   }
@@ -41,7 +44,8 @@ class PongController extends ChangeNotifier {
     super.dispose();
   }
 
-  /// Single-player layout setter. Notifica después del frame para evitar setState-during-build.
+  /// Configura el tamaño del layout. Notifica después del frame para evitar
+  /// "setState during build" errors.
   void setLayout(Size size) {
     if (state.screenWidth != size.width || state.screenHeight != size.height) {
       state.screenWidth = size.width;
@@ -52,7 +56,7 @@ class PongController extends ChangeNotifier {
       state.rightPaddleY = state.screenHeight / 2;
       _resetBall(toRight: rng.nextBool());
 
-      // NOTIFY after the current frame finishes building to avoid setState-during-build errors
+      // Post-frame notify to avoid notifying during build
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (!_disposed) notifyListeners();
       });
@@ -72,7 +76,6 @@ class PongController extends ChangeNotifier {
     _lastTick = elapsed;
     if (dt <= 0) return;
 
-    // Update physics
     _updateBall(dt);
     _updateAI(dt);
 
@@ -93,9 +96,19 @@ class PongController extends ChangeNotifier {
       s.ballVY = -s.ballVY;
     }
 
-    final leftRect = Rect.fromCenter(center: Offset(s.paddleWidth / 2, s.leftPaddleY), width: s.paddleWidth, height: s.paddleHeight);
-    final rightRect = Rect.fromCenter(center: Offset(s.screenWidth - s.paddleWidth / 2, s.rightPaddleY), width: s.paddleWidth, height: s.paddleHeight);
+    // Paddles rects
+    final leftRect = Rect.fromCenter(
+      center: Offset(s.paddleWidth / 2, s.leftPaddleY),
+      width: s.paddleWidth,
+      height: s.paddleHeight,
+    );
+    final rightRect = Rect.fromCenter(
+      center: Offset(s.screenWidth - s.paddleWidth / 2, s.rightPaddleY),
+      width: s.paddleWidth,
+      height: s.paddleHeight,
+    );
 
+    // Collisions with paddles
     if (s.ballVX < 0) {
       if (_circleRectCollision(s.ballX, s.ballY, s.ballRadius, leftRect)) {
         s.ballX = leftRect.right + s.ballRadius;
@@ -110,17 +123,19 @@ class PongController extends ChangeNotifier {
 
     // Score: ball passed left or right
     if (s.ballX + s.ballRadius < 0) {
+      // CPU scores
       s.rightScore += 1;
-      _resetBall(toRight: true); // send ball towards player after cpu scores
+      _resetBall(toRight: true); // send ball towards player
     } else if (s.ballX - s.ballRadius > s.screenWidth) {
+      // Player scores
       s.leftScore += 1;
-      _resetBall(toRight: false); // send ball towards CPU after player scores
+      _resetBall(toRight: false); // send ball towards CPU
     }
   }
 
   void _updateAI(double dt) {
     final s = state;
-    double aiSpeed = 500; // AI speed (px/s)
+    double aiSpeed = 450; // px/s
     // Simple AI: follow the ball Y position but limited by speed
     if ((s.rightPaddleY - s.ballY).abs() > 4) {
       if (s.rightPaddleY < s.ballY) {
@@ -139,33 +154,29 @@ class PongController extends ChangeNotifier {
     return dx * dx + dy * dy <= r * r;
   }
 
-  /// Fixed bounce logic:
-  /// - Compute speed before modifying velocities
-  /// - Determine outgoing horizontal direction based on which paddle was hit
+  /// Bounce logic: computes outgoing direction based on which paddle was hit,
+  /// preserves/adjusts speed and angle.
   void _bounceOffPaddle(Rect paddleRect) {
     final s = state;
 
-    // Compute current speed magnitude
+    // compute speed magnitude before changing velocities
     double speed = sqrt(s.ballVX * s.ballVX + s.ballVY * s.ballVY);
-    if (speed < 50) speed = 50; // minimum speed to avoid too slow balls
+    if (speed < 50) speed = 50; // minimum speed
 
-    // Determine outgoing horizontal direction: left paddle => +1 (to right), right paddle => -1 (to left)
+    // direction: left paddle -> to right (+1), right paddle -> to left (-1)
     double dir = (paddleRect.center.dx < s.screenWidth / 2) ? 1.0 : -1.0;
 
-    // Compute hit position relative to paddle center to influence angle
+    // impact position influences angle
     double relativeIntersectY = (s.ballY - paddleRect.center.dy) / (s.paddleHeight / 2);
     relativeIntersectY = relativeIntersectY.clamp(-1.0, 1.0);
-    double maxAngle = pi / 3; // up to 60 degrees from horizontal
+    double maxAngle = pi / 3;
     double angle = relativeIntersectY * maxAngle;
 
-    // Set new velocities keeping speed (with a small increase)
     double speedIncrease = 1.03;
     double newSpeed = speed * speedIncrease;
-    s.ballVX = dir * newSpeed * cos(angle).abs();
-    // vertical component keeps sign from angle
-    s.ballVY = newSpeed * sin(angle);
 
-    // Ensure ball is not stuck inside paddle; small position nudge already done by caller (_updateBall)
+    s.ballVX = dir * newSpeed * cos(angle).abs();
+    s.ballVY = newSpeed * sin(angle);
   }
 
   void _resetBall({required bool toRight}) {
@@ -173,7 +184,7 @@ class PongController extends ChangeNotifier {
     s.ballX = s.screenWidth / 2;
     s.ballY = s.screenHeight / 2;
     double baseSpeed = 350 + min((s.leftScore + s.rightScore) * 12.0, 500);
-    double angle = (rng.nextDouble() * pi / 6) - (pi / 12); // random angle between -15..15 deg
+    double angle = (rng.nextDouble() * pi / 6) - (pi / 12); // -15..15 deg
     s.ballVX = (toRight ? 1 : -1) * baseSpeed * cos(angle).abs();
     s.ballVY = baseSpeed * sin(angle);
   }
@@ -183,7 +194,6 @@ class PongController extends ChangeNotifier {
     final s = state;
     final dx = localPos.dx;
     final dy = localPos.dy;
-    // Only accept input on left half for player control
     if (dx < s.screenWidth / 2) {
       s.leftPaddleY = dy.clamp(s.paddleHeight / 2, s.screenHeight - s.paddleHeight / 2);
       if (!_disposed) notifyListeners();
