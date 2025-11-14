@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:ping_pong_game/services/firebase_service.dart';
 import 'game/pong_page.dart';
 
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  await FirebaseService.init();
 runApp(const PongApp());
 }
 

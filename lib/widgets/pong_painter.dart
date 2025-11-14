@@ -50,5 +50,3 @@ class PongPainter extends CustomPainter {
         oldDelegate.state.rightScore != state.rightScore;
   }
 }
-
-
