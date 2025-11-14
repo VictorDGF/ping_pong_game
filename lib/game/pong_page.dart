@@ -276,7 +276,7 @@ class _PongPageState extends State<PongPage> {
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.6),
+                        color: Colors.black.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text('Pausado', style: TextStyle(fontSize: 22, color: Colors.white)),
