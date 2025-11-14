@@ -14,8 +14,9 @@ class _PongPageState extends State<PongPage> {
   final PongController controller = PongController();
   String? _username;
   final List<String> _players = [];
-    bool _gameOverDialogShowing = false; // evita re-entradas al mostrar el diálogo
 
+  // Evita que el diálogo de fin de juego se muestre repetidas veces
+  bool _gameOverDialogShowing = false;
 
   @override
   void initState() {
@@ -31,32 +32,28 @@ class _PongPageState extends State<PongPage> {
     super.dispose();
   }
 
-    void _onControllerTick() {
-    // actualizamos UI
+  void _onControllerTick() {
+    // actualizar UI
     setState(() {});
 
-    // Si se cumple condición de fin de partida (por ejemplo 10 puntos), mostramos diálogo UNA sola vez
-    final isGameOver = controller.state.leftScore >= 10 || controller.state.rightScore >= 10;
+    final isGameOver =
+        controller.state.leftScore >= 10 || controller.state.rightScore >= 10;
     if (isGameOver && !_gameOverDialogShowing) {
       _gameOverDialogShowing = true;
-
-      // Ejecutar después del frame actual para evitar setState-during-build
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         try {
           await _showGameOverAndSave();
         } catch (e) {
-          // captura cualquier error en la lógica del diálogo para no dejar la flag establecida
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text('Error: $e')));
           }
         } finally {
-          // permitir futuros diálogos después de reiniciar/terminar
           _gameOverDialogShowing = false;
         }
       });
     }
   }
-
 
   void _onDragUpdate(DragUpdateDetails details) {
     controller.onDragUpdate(details.localPosition);
@@ -66,7 +63,6 @@ class _PongPageState extends State<PongPage> {
     controller.onTap(details.localPosition);
   }
 
-  // Pide nombre si no hay uno (diálogo)
   Future<void> _askUsernameIfNeeded() async {
     if (_username != null && _username!.trim().isNotEmpty) return;
 
@@ -80,8 +76,12 @@ class _PongPageState extends State<PongPage> {
           decoration: const InputDecoration(hintText: 'Nombre de jugador'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(null), child: const Text('Cancelar')),
-          ElevatedButton(onPressed: () => Navigator.of(context).pop(ctrl.text.trim()), child: const Text('Aceptar')),
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(ctrl.text.trim()),
+              child: const Text('Aceptar')),
         ],
       ),
     );
@@ -94,7 +94,6 @@ class _PongPageState extends State<PongPage> {
     }
   }
 
-  // Registrar jugador manual
   Future<void> _addPlayerDialog() async {
     final ctrl = TextEditingController();
     final result = await showDialog<String>(
@@ -123,7 +122,6 @@ class _PongPageState extends State<PongPage> {
     }
   }
 
-  // Seleccionar jugador de la lista local
   Future<void> _selectPlayerDialog() async {
     if (_players.isEmpty) return _addPlayerDialog();
 
@@ -131,27 +129,27 @@ class _PongPageState extends State<PongPage> {
       context: context,
       builder: (context) => SimpleDialog(
         title: const Text('Selecciona jugador'),
-        children: _players.map((p) => SimpleDialogOption(onPressed: () => Navigator.of(context).pop(p), child: Text(p))).toList(),
+        children: _players
+            .map((p) => SimpleDialogOption(onPressed: () => Navigator.of(context).pop(p), child: Text(p)))
+            .toList(),
       ),
     );
 
-    if (result != null) {
-      setState(() => _username = result);
-    }
+    if (result != null) setState(() => _username = result);
   }
 
-  // Al finalizar la partida guarda automáticamente (si hay nombre) y muestra diálogo
   Future<void> _showGameOverAndSave() async {
-    controller.togglePause(); // pausa mientras muestra diálogo
+    controller.togglePause(); // pausar mientras se muestra diálogo
 
-    final winner = controller.state.leftScore > controller.state.rightScore ? 'Jugador' : 'CPU';
+    final winner =
+        controller.state.leftScore > controller.state.rightScore ? 'Jugador' : 'CPU';
     final score = controller.state.leftScore;
 
     await _askUsernameIfNeeded();
 
     if (_username != null && _username!.isNotEmpty) {
       try {
-        // Llamada con parámetros nombrados (corrige el error)
+        // Ajusta según la firma real de tu FirebaseService. Aquí usamos named params.
         await FirebaseService.saveScore(username: _username!, score: score);
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Puntaje guardado')));
       } catch (e) {
@@ -172,7 +170,6 @@ class _PongPageState extends State<PongPage> {
     controller.restart();
   }
 
-  // Guardado manual con botón
   Future<void> _manualSave() async {
     await _askUsernameIfNeeded();
     if (_username == null || _username!.isEmpty) {
@@ -189,7 +186,6 @@ class _PongPageState extends State<PongPage> {
     }
   }
 
-  // Mostrar top (usa getTopScores de FirebaseService)
   Future<void> _showTop() async {
     try {
       final top = await FirebaseService.topScores();
@@ -232,33 +228,89 @@ class _PongPageState extends State<PongPage> {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          // actualizar layout (evita setState durante build porque setLayout hace post-frame notify)
+          // actualizar layout (setLayout hace post-frame notify para evitar setState-during-build)
           controller.setLayout(constraints.biggest);
 
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
             onPanUpdate: _onDragUpdate,
             onTapDown: _onTapDown,
-            child: CustomPaint(
-              size: Size.infinite,
-              painter: PongPainter(controller.state),
+            child: Stack(
+              children: [
+                // area de juego (pintor)
+                CustomPaint(
+                  size: Size.infinite,
+                  painter: PongPainter(controller.state),
+                ),
+
+                // Puntaje ubicado en la parte superior, centrado
+                Positioned(
+                  top: 12,
+                  left: 0,
+                  right: 0,
+                  child: SafeArea(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${controller.state.leftScore}',
+                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                        const SizedBox(width: 16),
+                        Container(width: 2, height: 28, color: Colors.white24),
+                        const SizedBox(width: 16),
+                        Text(
+                          '${controller.state.rightScore}',
+                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+          
+
+                // Mensaje Pausado
+                if (!controller.running)
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text('Pausado', style: TextStyle(fontSize: 22, color: Colors.white)),
+                    ),
+                  ),
+              ],
             ),
           );
         },
       ),
-      bottomNavigationBar: Container(
-        height: 55,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          children: [
-            Text('Puntos: ${controller.state.leftScore} - ${controller.state.rightScore}'),
-            const Spacer(),
-            Text(_username == null ? 'Jugador: (sin registrar)' : 'Jugador: $_username'),
-            const SizedBox(width: 10),
-            ElevatedButton(onPressed: _manualSave, child: const Text('Guardar')),
-            const SizedBox(width: 6),
-            ElevatedButton(onPressed: _showTop, child: const Text('Top')),
-          ],
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          height: 56,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              // muestra el nombre (ocupa lo máximo posible sin romper)
+              Expanded(
+                child: Text(
+                  _username == null ? 'Jugador: (sin registrar)' : 'Jugador: $_username',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+
+              // botones en una fila que se adaptan
+              Wrap(
+                spacing: 8,
+                children: [
+                  ElevatedButton(onPressed: _manualSave, child: const Text('Guardar')),
+                  ElevatedButton(onPressed: _showTop, child: const Text('Top')),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

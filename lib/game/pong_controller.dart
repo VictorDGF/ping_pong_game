@@ -135,7 +135,7 @@ class PongController extends ChangeNotifier {
 
   void _updateAI(double dt) {
     final s = state;
-    double aiSpeed = 450; // px/s
+    double aiSpeed = 250; // px/s
     // Simple AI: follow the ball Y position but limited by speed
     if ((s.rightPaddleY - s.ballY).abs() > 4) {
       if (s.rightPaddleY < s.ballY) {
@@ -172,7 +172,7 @@ class PongController extends ChangeNotifier {
     double maxAngle = pi / 3;
     double angle = relativeIntersectY * maxAngle;
 
-    double speedIncrease = 1.03;
+    double speedIncrease = 1.05;
     double newSpeed = speed * speedIncrease;
 
     s.ballVX = dir * newSpeed * cos(angle).abs();
