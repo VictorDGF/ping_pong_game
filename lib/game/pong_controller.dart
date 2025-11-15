@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-/// Estado del juego: posiciones, velocidades y puntajes.
+/// Estado del juego
 class PongState {
   double ballX = 0, ballY = 0;
   double ballVX = 0, ballVY = 0;
@@ -16,7 +16,7 @@ class PongState {
   int leftScore = 0, rightScore = 0;
 }
 
-/// Controlador del juego: física, IA, eventos de usuario y notificaciones.
+/// Controlador del juego
 class PongController extends ChangeNotifier {
   final PongState state = PongState();
   final Random rng = Random();
@@ -224,6 +224,17 @@ class PongController extends ChangeNotifier {
     _resetBall(toRight: rng.nextBool());
     running = true;
     _lastTick = Duration.zero;
+    if (!_disposed) notifyListeners();
+  }
+
+  @visibleForTesting
+  void step(double dt) {
+    // Actualiza la física exactamente como en _onTick pero usando dt directamente.
+    // Esto permite tests deterministas sin depender del Ticker de Flutter.
+    if (_disposed) return;
+    // avoid interfering with real ticker timings; re-use internal helpers
+    _updateBall(dt);
+    _updateAI(dt);
     if (!_disposed) notifyListeners();
   }
 }

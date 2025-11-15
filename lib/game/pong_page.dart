@@ -228,7 +228,7 @@ class _PongPageState extends State<PongPage> {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          // actualizar layout (setLayout hace post-frame notify para evitar setState-during-build)
+          // actualizar layout 
           controller.setLayout(constraints.biggest);
 
           return GestureDetector(
@@ -243,7 +243,7 @@ class _PongPageState extends State<PongPage> {
                   painter: PongPainter(controller.state),
                 ),
 
-                // Puntaje ubicado en la parte superior, centrado
+                // Puntaje ubicado en la parte superior
                 Positioned(
                   top: 12,
                   left: 0,
@@ -293,7 +293,7 @@ class _PongPageState extends State<PongPage> {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
             children: [
-              // muestra el nombre (ocupa lo máximo posible sin romper)
+              // muestra el nombre del jugador actual
               Expanded(
                 child: Text(
                   _username == null ? 'Jugador: (sin registrar)' : 'Jugador: $_username',
@@ -301,7 +301,7 @@ class _PongPageState extends State<PongPage> {
                 ),
               ),
 
-              // botones en una fila que se adaptan
+              // botones de guardar y mostrar top
               Wrap(
                 spacing: 8,
                 children: [
